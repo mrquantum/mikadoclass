@@ -1,0 +1,6 @@
+<LStick=0.4>
+<NumberMikado=100>
+<Stretchfactor=1.0>
+<Bend_on=0>
+
+<END>
