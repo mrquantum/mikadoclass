@@ -31,6 +31,7 @@ double *network::dvector( int size )
     double *p = new double[size];
     if (!p) {
         nrerror("Allocation of dvector failed!");
+        return nullptr;
     }else{
         return p;
     }
@@ -251,7 +252,8 @@ double network::f1dim(double alpha)
     
     xt=dvector(ncom);
     for(j=0;j<ncom;j++) xt[j]=pcom[j]+alpha*xicom[j];
-    f=(*nrfunc)(xt);
+    //f=(*nrfunc)(xt);
+    f=energy(xt);
     delete xt;
     return f;
 }
@@ -312,7 +314,7 @@ void network::mnbrak(double *ax, double *bx, double *cx, double *fa, double *fb,
     }
 }
 
-void network::frprmn(double p[],int n, double *fret,double (*func)(double []), void (*dfunc)(double [],double []))
+void network::frprmn(double p[],int n, double *fret)
 {
     
     
@@ -327,8 +329,8 @@ void network::frprmn(double p[],int n, double *fret,double (*func)(double []), v
     h=dvector(n);
     xi=dvector(n);
 
-    fp=(*func)(p);
-    (*dfunc)(p,xi); //calculates the gradient vector xi at position p
+    fp=energy(p);
+    grad(p,xi); //calculates the gradient vector xi at position p
 
     for(j=0;j<n;j++){
         g[j]=-xi[j];
@@ -338,9 +340,9 @@ void network::frprmn(double p[],int n, double *fret,double (*func)(double []), v
     //the loop itself
     for(its=0;its<=ITMAX;its++){
         cg_iter=its; //how many cg steps
-        dlinmin(p,xi,n,fret,func,dfunc);
-        double F;
-        if(2.0*fabs(*fret-fp) <=cg_ftol*(fabs(*fret)+fabs(fp)+EPS) && its>100){
+        dlinmin(p,xi,n,fret);
+        //if(its==1e4){
+        if(2.0*fabs(*fret-fp) <=cg_ftol*(fabs(*fret)+fabs(fp)+EPS)){
 //        if(cg_converged(p,xi,info.springlist,info.size/2,cg_lengrad,info.sheardeformation,1e-9)){
             delete g;
             delete h;
@@ -354,12 +356,12 @@ void network::frprmn(double p[],int n, double *fret,double (*func)(double []), v
             gsq=gsq+xi[ii]*xi[ii];
         }
 //         EN<<info.sheardeformation<<"\t"<<fp<<"\t"<<gsq<<endl;
-        (*dfunc)(p,xi);
+        grad(p,xi);
         dgg=gg=0.0;
         for(j=0;j<n;j++){
             gg+=g[j]*g[j];
-            //dgg+=xi[j]*xi[j];
-            dgg+=(xi[j]+g[j])*xi[j];
+            dgg+=xi[j]*xi[j];
+            //dgg+=(xi[j]+g[j])*xi[j];
         }
         if(gg==0.0){
             delete g;
@@ -378,10 +380,9 @@ void network::frprmn(double p[],int n, double *fret,double (*func)(double []), v
 }
 
 
-void (*nrdfun)(double [], double []);
+//void (*nrdfun)(double [], double []);
 
-void network::dlinmin(double p[], double xi[],int n, double *fret, double (*func)(double []),
-             void (*dfunc)(double [], double []))
+void network::dlinmin(double p[], double xi[],int n, double *fret)
 {
     //~ double dbrent(double ax, double bx, double cx,
                   //~ double (*f)(double), double (*df)(double), double tol, double *xmin);
@@ -396,8 +397,8 @@ void network::dlinmin(double p[], double xi[],int n, double *fret, double (*func
     ncom=n;
     pcom=dvector(n);
     xicom=dvector(n);
-    nrfunc=func;
-    nrdfun=dfunc;
+    //nrfunc=energy(*p);
+    //nrdfun=grad(*p,*xi);
     
     for(j=0;j<n;j++){
         pcom[j]=p[j];
@@ -417,7 +418,7 @@ void network::dlinmin(double p[], double xi[],int n, double *fret, double (*func
     
 }
 
-extern void (*nrdfun)(double [], double []);
+//extern void (*nrdfun)(double [], double []);
 double network::df1dim(double x)
 {
     int j;
@@ -427,7 +428,8 @@ double network::df1dim(double x)
     xt=dvector(ncom);
     df=dvector(ncom);
     for(j=0;j<ncom;j++) xt[j]=pcom[j]+x*xicom[j];
-    (*nrdfun)(xt,df);
+    //(*nrdfun)(xt,df);
+    grad(xt,df);
     for(j=0;j<ncom;j++) df1+=df[j]*xicom[j];
     delete df;
     delete xt;
